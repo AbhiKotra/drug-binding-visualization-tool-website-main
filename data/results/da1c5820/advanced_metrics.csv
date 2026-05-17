@@ -1,0 +1,2 @@
+alphafold_file,bound_file,global_rmsd,local_rmsd_5A,local_rmsd_8A,local_rmsd_10A,radius_of_gyration_alphafold,radius_of_gyration_bound
+da1c5820_alphafold.pdb,da1c5820_bound.pdb,23.83,15.49,19.064,21.447,21.914,20.652

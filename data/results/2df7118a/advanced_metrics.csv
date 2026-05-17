@@ -1,0 +1,2 @@
+alphafold_file,bound_file,ligand_code,global_rmsd,local_rmsd_5A,local_rmsd_8A,local_rmsd_10A,matched_residues_5A,matched_residues_8A,matched_residues_10A,radius_of_gyration_alphafold,radius_of_gyration_bound
+2df7118a_alphafold.pdb,2df7118a_bound.pdb,IRE,26.976,12.984,13.759,14.802,37,93,122,30.216,24.885

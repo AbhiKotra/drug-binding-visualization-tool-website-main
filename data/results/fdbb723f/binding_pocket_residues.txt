@@ -1,0 +1,2 @@
+Binding pocket residues within 5 Å of ligand IRE:
+
