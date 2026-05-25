@@ -1,0 +1,9 @@
+feature,importance
+radius_of_gyration_alphafold,0.22681534152122393
+radius_of_gyration_bound,0.22338935574229693
+local_rmsd_8A,0.18960933091185192
+local_rmsd_5A,0.18578934137757666
+local_rmsd_10A,0.1731631113984055
+matched_residues_10A,0.0006356388709329875
+matched_residues_8A,0.00034511240393592964
+matched_residues_5A,0.00025276777377617273

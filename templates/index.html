@@ -463,6 +463,20 @@
       line-height: 1.9;
     }
 
+    #ml-summary-output {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--success);
+      white-space: pre-wrap;
+      max-height: 420px;
+      overflow-y: auto;
+      line-height: 1.8;
+    }
+
     #graph-img { width: 100%; border-radius: 8px; display: block; animation: fadeIn 0.5s ease both; }
 
     #results-section { display: none; }
@@ -605,6 +619,17 @@
 <!-- ── SECTION 3: RESULTS ── -->
   
   <div id="results-section">
+    <div class="card">
+    <div class="section-label">Output 05</div>
+    <h2>Machine Learning Summary</h2>
+    <pre id="ml-summary-output"></pre>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Output 06</div>
+    <h2>Machine Learning Visualizations</h2>
+    <div id="ml-graph-container"></div>
+  </div>
 
    <div class="card">
     <div class="section-label">Project Metadata</div>
@@ -926,6 +951,45 @@ async function analyze() {
 
     document.getElementById('download-pocket').href =
       '/download/' + data.results_folder + '/binding_pocket_residues.txt';
+ // ── ML Summary Report ──
+    document.getElementById('ml-summary-output').innerText =
+      data.ml_summary || "No ML summary report found. Run ML scripts first.";
+
+    // ── ML Graphs ──
+    var mlGraphContainer = document.getElementById('ml-graph-container');
+    mlGraphContainer.innerHTML = '';
+
+    if (data.ml_graphs && data.ml_graphs.length > 0) {
+      data.ml_graphs.forEach(function(graph) {
+
+        var section = document.createElement('div');
+        section.style.marginBottom = '40px';
+
+        var title = document.createElement('h3');
+        title.style.marginBottom = '12px';
+        title.style.color = 'var(--accent)';
+        title.style.fontSize = '16px';
+
+        title.innerText = graph.name
+          .replace('.png', '')
+          .replaceAll('_', ' ')
+          .toUpperCase();
+
+        var img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + graph.data;
+        img.style.width = '100%';
+        img.style.borderRadius = '10px';
+        img.style.border = '1px solid rgba(255,255,255,0.08)';
+
+        section.appendChild(title);
+        section.appendChild(img);
+        mlGraphContainer.appendChild(section);
+      });
+    } else {
+      mlGraphContainer.innerHTML =
+        '<p style="color:var(--muted); font-family:var(--mono);">No ML graphs found. Run C.3–C.9 scripts first.</p>';
+    }
+    
     loadHistory();
     setStatus('Analysis complete ✓', false);
 
@@ -933,8 +997,6 @@ async function analyze() {
     setStatus('Error: ' + e.message, true);
   }
 }
-
-
 // ── 3-state slider ────────────────────────────────────────────
 function onSlider(val) {
   val = parseInt(val);

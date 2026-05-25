@@ -161,7 +161,36 @@ def analyze():
             with open(filepath, 'rb') as f:
                 encoded = base64.b64encode(f.read()).decode('utf-8')
                 graphs.append({'name': filename, 'data': encoded})
+    # Read ML summary report
+    ml_summary_path = os.path.join(RESULTS_FOLDER, "ml_summary_report.txt")
+    ml_summary_text = ""
 
+    if os.path.exists(ml_summary_path):
+        with open(ml_summary_path, "r", encoding="utf-8") as f:
+            ml_summary_text = f.read()
+
+
+    # Read global ML images
+    ml_graphs = []
+
+    global_ml_images = [
+        "pca_clusters_improved.png",
+        "mutation_similarity_heatmap.png",
+        "feature_importance.png",
+        "algorithm_comparison.png",
+        "feature_correlation_matrix.png"
+    ]
+
+    for filename in global_ml_images:
+        filepath = os.path.join(IMAGES_FOLDER, filename)
+
+        if os.path.exists(filepath):
+            with open(filepath, "rb") as f:
+                encoded = base64.b64encode(f.read()).decode("utf-8")
+                ml_graphs.append({
+                    "name": filename,
+                    "data": encoded
+                })
     # Send everything back to the browser as JSON
     return jsonify({
         'status': 'success',
@@ -169,6 +198,8 @@ def analyze():
         'advanced_metrics': advanced_metrics,
         'pocket': pocket_text,
         'graphs': graphs,
+        'ml_summary': ml_summary_text,
+        'ml_graphs': ml_graphs,
         'alphafold_id': f"{session_id}_alphafold",
         'bound_id': f"{session_id}_bound",
         'results_folder': session_id,

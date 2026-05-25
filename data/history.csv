@@ -1,2 +1,2 @@
-e6f59e8e,EGFR,L858R,Lung cancer,IRE,TP53_alphafold.pdb,TP53_bound.pdb,2026-05-16 22:38:52
-2df7118a,EGFR,L858R,Lung cancer,IRE,EGFR_alphafold.pdb,EGFR_gefitinib_bound.pdb,2026-05-16 22:49:47
+session_id,protein_name,mutation_name,disease_name,ligand_code,alphafold_file,bound_file,timestamp
+2b288eeb,EGFR,L858R,Lung cancer,IRE,TP53_alphafold.pdb,TP53_bound.pdb,2026-05-17 20:52:00

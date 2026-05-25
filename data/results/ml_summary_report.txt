@@ -1,0 +1,36 @@
+BioStruct-AI Machine Learning Summary Report
+=======================================================
+
+Dataset Overview
+--------------------
+Total analysis sessions: 16
+Average global RMSD: 23.519
+Maximum global RMSD: 26.976
+Minimum global RMSD: 15.705
+
+Structural Impact Classification
+-----------------------------------
+High structural impact: 15 sessions
+Low structural impact: 1 sessions
+
+Feature Importance Interpretation
+-----------------------------------
+radius_of_gyration_alphafold contributed an importance score of 0.227.
+radius_of_gyration_bound contributed an importance score of 0.223.
+local_rmsd_8A contributed an importance score of 0.190.
+local_rmsd_5A contributed an importance score of 0.186.
+local_rmsd_10A contributed an importance score of 0.173.
+
+The strongest predictor in the current dataset was radius_of_gyration_alphafold.
+
+PCA and Clustering Summary
+------------------------------
+Cluster 0: 14 sessions
+Cluster 1: 1 sessions
+Cluster 2: 1 sessions
+
+Scientific Interpretation
+------------------------------
+The current machine learning pipeline suggests that local structural deviation metrics and radius of gyration are useful indicators of protein structural impact.
+PCA and clustering analyses help identify structurally similar protein-ligand cases and highlight outlier conformations for further biological investigation.
+Because the dataset is still small, the current prediction results should be interpreted as exploratory rather than definitive.

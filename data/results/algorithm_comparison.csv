@@ -1,0 +1,4 @@
+algorithm,task_type,score_type,score,notes
+Random Forest,classification,training_accuracy,1.0,Supervised model predicting high vs low structural impact
+Logistic Regression,classification,training_accuracy,1.0,Linear supervised classifier for structural impact
+K-Means,clustering,silhouette_score,0.782340346971446,Unsupervised clustering of structural similarity
