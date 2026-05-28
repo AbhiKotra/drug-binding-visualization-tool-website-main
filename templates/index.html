@@ -855,8 +855,20 @@ async function analyze() {
 
   try {
     var resp = await fetch('/analyze', { method: 'POST', body: formData });
+
+    // Guard: if server returned non-JSON (e.g. HTML error page), show raw text
+    var contentType = resp.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      var raw = await resp.text();
+      setStatus('Server error (non-JSON response). Check Render logs. Preview: ' + raw.substring(0, 200), true);
+      return;
+    }
+
     var data = await resp.json();
-    if (data.error) { setStatus(data.error, true); return; }
+    if (data.error) {
+      setStatus('Error: ' + data.error + (data.details ? ' — ' + data.details.substring(0, 300) : ''), true);
+      return;
+    }
 
     // ── Load 3D viewer ──
     stage.removeAllComponents();

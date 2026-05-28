@@ -43,6 +43,17 @@ def index():
 # When the user clicks Analyze, the browser sends the files here
 @app.route('/analyze', methods=['POST'])
 def analyze():
+    try:
+        return _analyze_inner()
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': 'Unexpected server error',
+            'details': traceback.format_exc()
+        }), 500
+
+
+def _analyze_inner():
     # ── Step 1: Get the uploaded files ──
     if 'alphafold' not in request.files or 'bound' not in request.files:
         return jsonify({'error': 'Please upload both PDB files.'}), 400
@@ -301,6 +312,14 @@ def history():
 
 @app.route('/blast', methods=['POST'])
 def blast_search():
+    try:
+        return _blast_inner()
+    except Exception as e:
+        import traceback
+        return jsonify({'error': 'BLAST server error', 'details': traceback.format_exc()}), 500
+
+
+def _blast_inner():
     """Separate endpoint for NCBI BLAST — called by the frontend after main analysis."""
     session_id  = request.form.get('session_id', '').strip()
     pdb_file    = request.form.get('pdb_file',   '').strip()
