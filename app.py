@@ -70,7 +70,7 @@ def analyze():
     history_path = os.path.join(BASE_DIR, "data", "history.csv")
     history_exists = os.path.exists(history_path)
 
-    with open(history_path, "a", newline="") as f:
+    with open(history_path, "a", newline="", encoding='utf-8', errors='replace') as f:
         writer = csv.writer(f)
 
         if not history_exists:
@@ -129,20 +129,40 @@ def analyze():
             'error': 'Backend script failed',
             'details': e.stderr
         }), 500
-    # ── Step 6: Read the results and send them back to the browser ──
+
+    # ── Step 4: Run new analysis scripts (non-fatal — each wrapped individually) ──
+    new_scripts = [
+        [python, os.path.join(SCRIPTS_FOLDER, 'analyze_hbonds.py'),
+         bound_path, ligand_code, results_dir],
+        [python, os.path.join(SCRIPTS_FOLDER, 'analyze_occupancy.py'),
+         bound_path, ligand_code, results_dir],
+        [python, os.path.join(SCRIPTS_FOLDER, 'analyze_metal_coordination.py'),
+         bound_path, ligand_code, results_dir],
+        [python, os.path.join(SCRIPTS_FOLDER, 'ramachandran_plot.py'),
+         alphafold_path, bound_path, images_dir, results_dir],
+        [python, os.path.join(SCRIPTS_FOLDER, 'sequence_comparison.py'),
+         alphafold_path, bound_path, results_dir, ligand_code],
+    ]
+    for cmd in new_scripts:
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=120)
+        except Exception:
+            pass  # non-fatal; partial results still returned
+
+    # ── Step 5: Read the results and send them back to the browser ──
 
     # Read the CSV stats
     csv_path = os.path.join(results_dir, "structure_summary.csv")
     stats = []
     if os.path.exists(csv_path):
-        with open(csv_path) as f:
+        with open(csv_path, encoding='utf-8', errors='replace') as f:
             reader = csv.DictReader(f)
             stats = list(reader)
             
     advanced_path = os.path.join(results_dir, "advanced_metrics.csv")
     advanced_metrics = []
     if os.path.exists(advanced_path):
-        with open(advanced_path) as f:
+        with open(advanced_path, encoding='utf-8', errors='replace') as f:
             reader = csv.DictReader(f)
             advanced_metrics = list(reader)
 
@@ -150,7 +170,7 @@ def analyze():
     pocket_path = os.path.join(results_dir, "binding_pocket_residues.txt")
     pocket_text = ""
     if os.path.exists(pocket_path):
-        with open(pocket_path) as f:
+        with open(pocket_path, encoding='utf-8', errors='replace') as f:
             pocket_text = f.read()
 
     # Convert the graph PNG to base64 (a way to embed an image directly in JSON)
@@ -166,7 +186,7 @@ def analyze():
     ml_summary_text = ""
 
     if os.path.exists(ml_summary_path):
-        with open(ml_summary_path, "r", encoding="utf-8") as f:
+        with open(ml_summary_path, "r", encoding='utf-8', errors='replace') as f:
             ml_summary_text = f.read()
 
 
@@ -191,6 +211,31 @@ def analyze():
                     "name": filename,
                     "data": encoded
                 })
+    # ── Read new analysis results ──
+
+    def read_csv_safe(path):
+        if not os.path.exists(path):
+            return []
+        with open(path, newline='', encoding='utf-8', errors='replace') as f:
+            return list(csv.DictReader(f))
+
+    def read_txt_safe(path):
+        if not os.path.exists(path):
+            return ''
+        with open(path, encoding='utf-8', errors='replace') as f:
+            return f.read()
+
+    hbond_data       = read_csv_safe(os.path.join(results_dir, 'hbond_interactions.csv'))
+    hbond_summary    = read_txt_safe(os.path.join(results_dir, 'hbond_summary.txt'))
+    occ_low          = read_csv_safe(os.path.join(results_dir, 'low_occupancy_residues.csv'))
+    occ_high         = read_csv_safe(os.path.join(results_dir, 'high_bfactor_residues.csv'))
+    occ_summary      = read_txt_safe(os.path.join(results_dir, 'occupancy_bfactor_summary.txt'))
+    metal_data       = read_csv_safe(os.path.join(results_dir, 'metal_coordination.csv'))
+    metal_summary    = read_txt_safe(os.path.join(results_dir, 'metal_coordination_summary.txt'))
+    seq_comp_data    = read_csv_safe(os.path.join(results_dir, 'sequence_comparison.csv'))
+    seq_comp_summary = read_txt_safe(os.path.join(results_dir, 'sequence_comparison_summary.txt'))
+    res_corr_data    = read_csv_safe(os.path.join(results_dir, 'residue_correspondence.csv'))
+
     # Send everything back to the browser as JSON
     return jsonify({
         'status': 'success',
@@ -200,6 +245,16 @@ def analyze():
         'graphs': graphs,
         'ml_summary': ml_summary_text,
         'ml_graphs': ml_graphs,
+        'hbond_data': hbond_data,
+        'hbond_summary': hbond_summary,
+        'occupancy_low': occ_low,
+        'occupancy_high': occ_high,
+        'occupancy_summary': occ_summary,
+        'metal_data': metal_data,
+        'metal_summary': metal_summary,
+        'seq_comparison': seq_comp_data,
+        'seq_comparison_summary': seq_comp_summary,
+        'residue_correspondence': res_corr_data,
         'alphafold_id': f"{session_id}_alphafold",
         'bound_id': f"{session_id}_bound",
         'results_folder': session_id,
@@ -209,7 +264,7 @@ def analyze():
             'ligand_code': ligand_code,
             'disease_name': disease_name
         },
-})
+    })
 
 
 # ── Route 3: Serve uploaded PDB files to the 3D viewer ────────────
@@ -236,13 +291,61 @@ def history():
     rows = []
 
     if os.path.exists(history_path):
-        with open(history_path) as f:
+        with open(history_path, encoding='utf-8', errors='replace') as f:
             reader = csv.DictReader(f)
             rows = list(reader)
 
     rows.reverse()
 
     return jsonify(rows)
+
+@app.route('/blast', methods=['POST'])
+def blast_search():
+    """Separate endpoint for NCBI BLAST — called by the frontend after main analysis."""
+    session_id  = request.form.get('session_id', '').strip()
+    pdb_file    = request.form.get('pdb_file',   '').strip()
+    threshold   = request.form.get('threshold',  '80').strip()
+
+    if not session_id or not pdb_file:
+        return jsonify({'error': 'Missing session_id or pdb_file'}), 400
+
+    bound_path  = os.path.join(UPLOAD_FOLDER,  pdb_file + '.pdb')
+    results_dir = os.path.join(RESULTS_FOLDER, session_id)
+
+    if not os.path.exists(bound_path):
+        return jsonify({'error': 'PDB file not found on server'}), 404
+
+    python = sys.executable
+    try:
+        subprocess.run([
+            python,
+            os.path.join(SCRIPTS_FOLDER, 'blast_search.py'),
+            bound_path, results_dir, threshold,
+        ], check=True, capture_output=True, text=True, timeout=180)
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'BLAST timed out (>180 s). Try a shorter sequence.'}), 504
+    except subprocess.CalledProcessError as e:
+        return jsonify({'error': 'BLAST failed', 'details': e.stderr}), 500
+
+    blast_csv = os.path.join(results_dir, 'blast_results.csv')
+    blast_txt = os.path.join(results_dir, 'blast_summary.txt')
+
+    blast_data = []
+    if os.path.exists(blast_csv):
+        with open(blast_csv, newline='', encoding='utf-8', errors='replace') as f:
+            blast_data = list(csv.DictReader(f))
+
+    blast_summary = ''
+    if os.path.exists(blast_txt):
+        with open(blast_txt, encoding='utf-8', errors='replace') as f:
+            blast_summary = f.read()
+
+    return jsonify({
+        'status': 'success',
+        'blast_data': blast_data,
+        'blast_summary': blast_summary,
+    })
+
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

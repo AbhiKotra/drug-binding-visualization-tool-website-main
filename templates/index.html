@@ -606,6 +606,7 @@
           <div class="legend-item" id="leg-bound"><div class="dot" style="background:#00e5cc"></div>Drug-bound protein</div>
           <div class="legend-item" id="leg-drug"><div class="dot" style="background:#FF6B35"></div>Drug / ligand</div>
           <div class="legend-item" id="leg-pocket"><div class="dot" style="background:#FFD700"></div>Binding pocket</div>
+          <div class="legend-item" id="leg-hbond"><div class="dot" style="background:#FF00FF"></div>H-bond residues</div>
         </div>
       </div>
 
@@ -661,8 +662,83 @@
       <h2>Structure Comparison Graph</h2>
       <div id="graph-container"></div>
     </div>
+    <!-- ── BLAST Orthologue Search ── -->
     <div class="card">
-      <div class="section-label">Output 04</div>
+      <div class="section-label">Output 04G</div>
+      <h2>BLAST Orthologue Search &nbsp;<small style="color:var(--muted);font-size:12px;font-weight:400;">blastp vs PDB database</small></h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Finds similar protein structures from other species (≥80% identity). Run separately — takes 30–90 s.
+      </p>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+        <label style="color:var(--muted);font-size:12px;font-family:var(--mono);">Min identity %:</label>
+        <input type="number" id="blastThreshold" value="80" min="50" max="100" step="5"
+               style="width:64px;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+                      color:var(--text);border-radius:6px;padding:4px 8px;font-family:var(--mono);font-size:13px;">
+        <button class="btn" onclick="runBlast()" id="blast-btn">Run BLAST Search</button>
+        <span id="blast-status" style="font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div id="blast-table-container" style="overflow-x:auto;"></div>
+      <pre id="blast-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;
+           padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;
+           max-height:260px;overflow-y:auto;margin-top:14px;display:none;"></pre>
+    </div>
+
+    <!-- ── H-Bond Interactions ── -->
+    <div class="card">
+      <div class="section-label">Output 04A</div>
+      <h2>Hydrogen Bond Interactions &nbsp;<small style="color:var(--muted);font-size:12px;font-weight:400;">Protein ↔ Ligand</small></h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        D···A distance · D–H···A angle · Classification: Weak &gt;90° / Moderate &gt;120° / Strong &gt;160°
+      </p>
+      <div id="hbond-container" style="overflow-x:auto;"></div>
+      <pre id="hbond-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;max-height:220px;overflow-y:auto;margin-top:14px;"></pre>
+    </div>
+
+    <!-- ── Occupancy & B-Factor ── -->
+    <div class="card">
+      <div class="section-label">Output 04B</div>
+      <h2>Occupancy &amp; Thermal Ellipsoid (B-Factor)</h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Occupancy &lt;1.0 = dual conformations · High B-factor = thermal motion / weak binding
+      </p>
+      <pre id="occ-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;max-height:300px;overflow-y:auto;"></pre>
+      <div id="occ-low-container" style="overflow-x:auto;margin-top:14px;"></div>
+    </div>
+
+    <!-- ── Metal Coordination ── -->
+    <div class="card">
+      <div class="section-label">Output 04C</div>
+      <h2>Metal Ion Coordination</h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Fe, Zn, Mg, Ca, Cu … · Heme Fe: 4 equatorial N + axial ligands
+      </p>
+      <pre id="metal-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;max-height:300px;overflow-y:auto;"></pre>
+      <div id="metal-table-container" style="overflow-x:auto;margin-top:14px;"></div>
+    </div>
+
+    <!-- ── Ramachandran Plots ── -->
+    <div class="card">
+      <div class="section-label">Output 04D</div>
+      <h2>Ramachandran Plot &nbsp;<small style="color:var(--muted);font-size:12px;font-weight:400;">φ/ψ Backbone Dihedral Angles</small></h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Validates secondary structure of ML-predicted (AlphaFold) vs experimental structure
+      </p>
+      <div id="ramachandran-container"></div>
+    </div>
+
+    <!-- ── Sequence Comparison ── -->
+    <div class="card">
+      <div class="section-label">Output 04E</div>
+      <h2>Sequence Comparison &amp; Structural Deviation Table</h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Pairwise alignment · Sequence identity · RMSD deviation (Å) · Binding pocket residue conservation
+      </p>
+      <div id="seq-comp-container" style="overflow-x:auto;"></div>
+      <pre id="seq-comp-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;max-height:260px;overflow-y:auto;margin-top:14px;"></pre>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Output 04F</div>
       <h2>Download Results</h2>
 
       <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:20px;">
@@ -798,7 +874,7 @@ async function analyze() {
       stage.handleResize();
     });
 
-    // Drug-bound structure — teal protein + orange drug + yellow pocket
+    // Drug-bound structure — teal protein + orange drug + yellow pocket + magenta H-bonds
     var boundBlob = new Blob([await boundFile.arrayBuffer()], { type: 'text/plain' });
     stage.loadFile(boundBlob, { ext: 'pdb', name: 'bound' }).then(function(comp) {
       comp.addRepresentation("cartoon", { color: "#00e5cc", opacity: 0.75 });
@@ -807,6 +883,8 @@ async function analyze() {
         color: "#FF6B35",
         radius: 0.3
       });
+
+      // Binding pocket residues — yellow ball+stick
       var pocketLines = data.pocket.split('\n').filter(function(l) {
         return l.match(/Chain \w: \w+ \d+/);
       });
@@ -818,9 +896,35 @@ async function analyze() {
           radius: 0.25
         });
       }
+
+      // H-bond donor/acceptor residues — magenta ball+stick
+      if (data.hbond_data && data.hbond_data.length > 0) {
+        var hbondNums = new Set();
+        data.hbond_data.forEach(function(hb) {
+          var dm = (hb.donor_residue    || '').match(/\b(\d+)\b/);
+          var am = (hb.acceptor_residue || '').match(/\b(\d+)\b/);
+          if (dm) hbondNums.add(dm[1]);
+          if (am) hbondNums.add(am[1]);
+        });
+        if (hbondNums.size > 0) {
+          comp.addRepresentation("ball+stick", {
+            sele: Array.from(hbondNums).join(' or '),
+            color: "#FF00FF",
+            radius: 0.32,
+            aspectRatio: 2.5
+          });
+        }
+      }
+
       stage.autoView();
       stage.handleResize();
     });
+
+    // Store session info for BLAST button
+    window._blastSession = {
+      session_id: data.results_folder,
+      pdb_file:   data.bound_id,
+    };
 
     console.log(data);
 
@@ -990,6 +1094,14 @@ async function analyze() {
         '<p style="color:var(--muted); font-family:var(--mono);">No ML graphs found. Run C.3–C.9 scripts first.</p>';
     }
     
+    // ── New analysis sections ──
+    renderHbonds(data.hbond_data, data.hbond_summary);
+    renderOccupancy(data.occupancy_low, data.occupancy_high, data.occupancy_summary);
+    renderMetal(data.metal_data, data.metal_summary);
+    renderRamachandran(data.graphs);
+    renderSeqComparison(data.seq_comparison, data.seq_comparison_summary,
+                        data.residue_correspondence, data.advanced_metrics);
+
     loadHistory();
     setStatus('Analysis complete ✓', false);
 
@@ -1106,6 +1218,216 @@ function setStatus(msg, isError) {
   bar.style.display = 'block';
   bar.innerHTML = msg;
   bar.className = isError ? 'error' : '';
+}
+
+// ── Shared table builder ─────────────────────────────────────
+function buildTable(rows, containerId, emptyMsg) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  if (!rows || rows.length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);font-family:var(--mono);font-size:12px;">' + emptyMsg + '</p>';
+    return;
+  }
+  var keys = Object.keys(rows[0]);
+  var html = '<table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;">';
+  html += '<thead><tr>';
+  keys.forEach(function(k) {
+    html += '<th style="padding:6px 10px;text-align:left;color:var(--accent);border-bottom:1px solid var(--border);white-space:nowrap;">'
+            + k.replaceAll('_', ' ') + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+  rows.forEach(function(row, i) {
+    var bg = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent';
+    html += '<tr style="background:' + bg + ';">';
+    keys.forEach(function(k) {
+      var val = row[k] === null || row[k] === undefined ? '' : row[k];
+      // Highlight strength column
+      var style = 'padding:5px 10px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.04);white-space:nowrap;';
+      if (k === 'strength') {
+        var c = val === 'Strong' ? '#22d3a4' : val === 'Moderate' ? '#00e5ff' : '#FF6B35';
+        style += 'color:' + c + ';font-weight:500;';
+      }
+      if (k === 'da_distance_A' || k === 'bond_distance_A') {
+        style += 'color:#FFD700;';
+      }
+      if (k === 'dha_angle_deg') {
+        style += 'color:#00e5ff;';
+      }
+      html += '<td style="' + style + '">' + val + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ── BLAST Search ─────────────────────────────────────────────
+async function runBlast() {
+  if (!window._blastSession) {
+    alert('Run main analysis first to load a structure.');
+    return;
+  }
+  var threshold = document.getElementById('blastThreshold').value || '80';
+  var btn = document.getElementById('blast-btn');
+  var statusEl = document.getElementById('blast-status');
+  btn.disabled = true;
+  statusEl.innerHTML = '<span class="spinner"></span> Querying NCBI BLAST — please wait (30–90 s)…';
+
+  try {
+    var fd = new FormData();
+    fd.append('session_id', window._blastSession.session_id);
+    fd.append('pdb_file',   window._blastSession.pdb_file);
+    fd.append('threshold',  threshold);
+
+    var resp = await fetch('/blast', { method: 'POST', body: fd });
+    var data = await resp.json();
+
+    if (data.error) {
+      statusEl.innerText = 'Error: ' + data.error;
+      btn.disabled = false;
+      return;
+    }
+
+    // Render table
+    var display = (data.blast_data || []).map(function(r) {
+      return {
+        'PDB ID':       r.pdb_id,
+        'Chain':        r.chain,
+        'Organism':     r.organism,
+        'Identity (%)': r.identity_pct,
+        'Similarity (%)': r.similarity_pct,
+        'E-value':      r.e_value,
+        'Align len':    r.alignment_length,
+        'Description':  (r.description || '').substring(0, 60),
+      };
+    });
+    buildTable(display, 'blast-table-container',
+      'No BLAST hits found above the threshold.');
+
+    var summaryEl = document.getElementById('blast-summary');
+    summaryEl.innerText = data.blast_summary || '';
+    summaryEl.style.display = 'block';
+
+    var n = (data.blast_data || []).length;
+    statusEl.innerText = n + ' hit' + (n !== 1 ? 's' : '') + ' found ✓';
+  } catch (e) {
+    statusEl.innerText = 'Request failed: ' + e.message;
+  }
+  btn.disabled = false;
+}
+
+// ── Render H-bonds ────────────────────────────────────────────
+function renderHbonds(data, summary) {
+  document.getElementById('hbond-summary').innerText = summary || 'No H-bond data available.';
+  // Show only the key columns in the table
+  var display = (data || []).map(function(r) {
+    return {
+      'Direction':     r.direction,
+      'Donor':         r.donor_residue,
+      'Donor atom':    r.donor_atom,
+      'Acceptor':      r.acceptor_residue,
+      'Acceptor atom': r.acceptor_atom,
+      'D…A (Å)': r.da_distance_A,
+      'D–H (Å)': r.dh_distance_A,
+      'H…A (Å)': r.ha_distance_A,
+      'Angle (°)': r.dha_angle_deg,
+      'Strength': r.strength,
+    };
+  });
+  buildTable(display, 'hbond-container', 'No H-bond interactions found for this ligand.');
+}
+
+// ── Render Occupancy / B-factor ───────────────────────────────
+function renderOccupancy(lowOcc, highB, summary) {
+  document.getElementById('occ-summary').innerText = summary || 'No occupancy data available.';
+  var display = (lowOcc || []).map(function(r) {
+    return {
+      'Chain': r.chain,
+      'Residue': r.residue,
+      'Res #': r.resnum,
+      'Occupancy': r.occupancy,
+      'Max B-factor (Å²)': r.max_bfactor,
+      'Atoms': r.atoms,
+      'Type': r.type,
+    };
+  });
+  buildTable(display, 'occ-low-container',
+    lowOcc && lowOcc.length === 0
+      ? 'All atoms have occupancy = 1.0 (no dual conformations detected).'
+      : 'No low-occupancy residues.');
+}
+
+// ── Render Metal Coordination ─────────────────────────────────
+function renderMetal(metalData, summary) {
+  document.getElementById('metal-summary').innerText = summary || 'No metal coordination data.';
+  var display = (metalData || []).map(function(r) {
+    return {
+      'Metal': r.metal_name,
+      'Metal atom': r.metal_atom,
+      'Metal residue': r.metal_residue + ' ' + r.metal_resnum,
+      'Chain': r.metal_chain,
+      'Coord #': r.coordination_number,
+      'Geometry': r.geometry,
+      'Coord atom': r.coord_atom + ' (' + r.coord_element + ')',
+      'Coord residue': r.coord_residue + ' ' + r.coord_resnum,
+      'Bond dist (Å)': r.bond_distance_A,
+      'Ligand type': r.ligand_type,
+    };
+  });
+  buildTable(display, 'metal-table-container',
+    'No metal ions detected in this structure.');
+}
+
+// ── Render Ramachandran images ────────────────────────────────
+function renderRamachandran(graphs) {
+  var el = document.getElementById('ramachandran-container');
+  if (!el) return;
+  var ramaGraphs = (graphs || []).filter(function(g) {
+    return g.name && g.name.startsWith('ramachandran_');
+  });
+  if (ramaGraphs.length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);font-family:var(--mono);font-size:12px;">Ramachandran plots will appear here after analysis.</p>';
+    return;
+  }
+  el.innerHTML = '';
+  ramaGraphs.forEach(function(g) {
+    var wrap = document.createElement('div');
+    wrap.style.marginBottom = '30px';
+    var ttl = document.createElement('h3');
+    ttl.style.cssText = 'color:var(--accent);font-size:14px;margin-bottom:10px;';
+    ttl.innerText = g.name.replace('.png','').replaceAll('_',' ').toUpperCase();
+    var img = document.createElement('img');
+    img.src = 'data:image/png;base64,' + g.data;
+    img.style.cssText = 'width:100%;border-radius:10px;border:1px solid var(--border);';
+    wrap.appendChild(ttl);
+    wrap.appendChild(img);
+    el.appendChild(wrap);
+  });
+}
+
+// ── Render Sequence Comparison ────────────────────────────────
+function renderSeqComparison(seqData, seqSummary, resCorr, advMetrics) {
+  document.getElementById('seq-comp-summary').innerText = seqSummary || 'No sequence comparison data.';
+
+  // Build master comparison table
+  var rmsd = '';
+  if (advMetrics && advMetrics.length > 0) {
+    rmsd = advMetrics[0].global_rmsd || '';
+  }
+  var display = (seqData || []).map(function(r) {
+    return {
+      'Chain': r.chain,
+      'AF length': r.af_length,
+      'Bound length': r.bound_length,
+      'Identity (%)': r.sequence_identity_pct,
+      'Similarity (%)': r.sequence_similarity_pct,
+      '≥90% similar': r.high_similarity_ge90 === 'True' ? 'YES' : 'NO',
+      'Global RMSD (Å)': rmsd,
+      'AlphaFold preview': r.aligned_af_preview,
+      'Bound preview': r.aligned_bound_preview,
+    };
+  });
+  buildTable(display, 'seq-comp-container', 'No sequence comparison data available.');
 }
 </script>
 
