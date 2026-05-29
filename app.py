@@ -20,10 +20,14 @@ app = Flask(__name__)
 # Where this file lives (project root)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# On Azure App Service, HOME is /home which is the only writable persistent
+# volume. Fall back to /tmp (ephemeral) if HOME isn't set.
+_DATA_ROOT = os.path.join(os.environ.get('HOME', '/tmp'), 'site', 'data')
+
 # Folders for temporary uploads and results
-UPLOAD_FOLDER  = os.path.join(BASE_DIR, "data", "uploads")
-RESULTS_FOLDER = os.path.join(BASE_DIR, "data", "results")
-IMAGES_FOLDER  = os.path.join(BASE_DIR, "data", "images")
+UPLOAD_FOLDER  = os.path.join(_DATA_ROOT, "uploads")
+RESULTS_FOLDER = os.path.join(_DATA_ROOT, "results")
+IMAGES_FOLDER  = os.path.join(_DATA_ROOT, "images")
 SCRIPTS_FOLDER = os.path.join(BASE_DIR, "scripts")
 
 # Create these folders if they don't exist yet
@@ -78,7 +82,7 @@ def _analyze_inner():
     alphafold_file.save(alphafold_path)
     bound_file.save(bound_path)
     # Save analysis to history
-    history_path = os.path.join(BASE_DIR, "data", "history.csv")
+    history_path = os.path.join(_DATA_ROOT, "history.csv")
     history_exists = os.path.exists(history_path)
 
     with open(history_path, "a", newline="", encoding='utf-8', errors='replace') as f:
@@ -118,7 +122,7 @@ def _analyze_inner():
             bound_path,
             results_dir,
             ligand_code
-        ], check=True, capture_output=True, text=True)
+        ], check=True, capture_output=True, text=True, timeout=180)
 
         subprocess.run([
             python,
@@ -126,15 +130,20 @@ def _analyze_inner():
             bound_path,
             ligand_code,
             results_dir
-        ], check=True, capture_output=True, text=True)
+        ], check=True, capture_output=True, text=True, timeout=120)
 
         subprocess.run([
             python,
             os.path.join(SCRIPTS_FOLDER, 'plot_summary.py'),
             results_dir,
             images_dir
-        ], check=True, capture_output=True, text=True)
+        ], check=True, capture_output=True, text=True, timeout=120)
 
+    except subprocess.TimeoutExpired as e:
+        return jsonify({
+            'error': 'Analysis timed out — the PDB file may be too large. Try a smaller structure.',
+            'details': str(e)
+        }), 504
     except subprocess.CalledProcessError as e:
         return jsonify({
             'error': 'Backend script failed',
@@ -193,7 +202,7 @@ def _analyze_inner():
                 encoded = base64.b64encode(f.read()).decode('utf-8')
                 graphs.append({'name': filename, 'data': encoded})
     # Read ML summary report
-    ml_summary_path = os.path.join(RESULTS_FOLDER, "ml_summary_report.txt")
+    ml_summary_path = os.path.join(BASE_DIR, "data", "results", "ml_summary_report.txt")
     ml_summary_text = ""
 
     if os.path.exists(ml_summary_path):
@@ -297,7 +306,7 @@ def download_file(session_id, filename):
 # ── Start the server ──────────────────────────────────────────────
 @app.route('/history')
 def history():
-    history_path = os.path.join(BASE_DIR, "data", "history.csv")
+    history_path = os.path.join(_DATA_ROOT, "history.csv")
 
     rows = []
 
