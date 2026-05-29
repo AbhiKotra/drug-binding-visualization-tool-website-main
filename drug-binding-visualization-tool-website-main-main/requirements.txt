@@ -1,0 +1,8 @@
+flask>=2.3,<4
+biopython>=1.80
+pandas>=1.5
+matplotlib>=3.6
+numpy>=1.23
+werkzeug>=2.3,<4
+gunicorn>=20.1
+scikit-learn>=1.1

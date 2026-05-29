@@ -1,0 +1,1447 @@
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drug–Protein Binding Visualizer</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"></script>
+
+  <style>
+    :root {
+      --bg:      #09090b;
+      --surface: #111114;
+      --border:  rgba(255,255,255,0.08);
+      --accent:  #00e5ff;
+      --accent2: #ff6b35;
+      --text:    #e4e4e7;
+      --muted:   #71717a;
+      --success: #22d3a4;
+      --font:    'Inter', sans-serif;
+      --mono:    'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    header {
+      position: relative;
+      z-index: 1;
+      padding: 52px 48px 36px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      animation: fadeIn 0.6s ease both;
+    }
+
+    .logo-area h1 {
+      font-family: var(--font);
+      font-size: 26px;
+      font-weight: 500;
+      letter-spacing: -0.3px;
+      line-height: 1.4;
+      padding: 2px 0;
+    }
+
+    .logo-area h1 span { color: var(--accent); font-weight: 400; }
+
+    .logo-area p {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 400;
+      margin-top: 6px;
+      font-family: var(--mono);
+      letter-spacing: 0.2px;
+    }
+
+    .badge {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 44px 48px 100px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px;
+      margin-bottom: 24px;
+      animation: slideIn 0.5s ease both;
+      transition: border-color 0.2s;
+    }
+
+    .card:nth-child(1) { animation-delay: 0.1s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.3s; }
+    .card:hover { border-color: rgba(255,255,255,0.13); }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      opacity: 0.8;
+    }
+
+    h2 {
+      font-family: var(--font);
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1.5;
+      padding: 2px 0;
+      margin-bottom: 22px;
+      letter-spacing: -0.2px;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    @media (max-width: 640px) { .upload-grid { grid-template-columns: 1fr; } }
+
+    .upload-box {
+      border: 1px dashed rgba(255,255,255,0.12);
+      border-radius: 10px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.25s, background 0.25s, transform 0.2s;
+      position: relative;
+    }
+
+    .upload-box:hover {
+      border-color: rgba(0,229,255,0.35);
+      background: rgba(0,229,255,0.03);
+      transform: translateY(-1px);
+    }
+
+    .upload-box.has-file {
+      border-color: rgba(0,229,255,0.5);
+      background: rgba(0,229,255,0.04);
+    }
+
+    .upload-box input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+
+    .upload-icon { font-size: 24px; margin-bottom: 10px; }
+
+    .upload-box .label {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 6px;
+    }
+
+    .upload-box .desc { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .upload-box .filename { color: var(--success); font-size: 11px; font-family: var(--mono); margin-top: 10px; }
+
+    .fetch-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .fetch-row label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+    input[type="text"] {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 9px 13px;
+      border-radius: 8px;
+      outline: none;
+      width: 130px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: rgba(0,229,255,0.4);
+      background: rgba(0,229,255,0.03);
+    }
+
+    .ligand-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .ligand-row label { font-size: 13px; color: var(--muted); }
+    .ligand-row .hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+    .btn {
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, transform 0.1s;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+    }
+
+    .btn:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
+    .btn:active { transform: scale(0.98); }
+
+    .btn-analyze {
+      background: var(--accent);
+      color: #000;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 14px 36px;
+      width: 100%;
+      margin-top: 8px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn-analyze:hover { opacity: 0.88; }
+    .btn-analyze:active { transform: scale(0.99); }
+
+    #status-bar {
+      display: none;
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      margin-top: 14px;
+      background: rgba(0,229,255,0.05);
+      border: 1px solid rgba(0,229,255,0.12);
+      color: var(--accent);
+      animation: fadeIn 0.3s ease both;
+    }
+
+    #status-bar.error {
+      background: rgba(255,107,53,0.05);
+      border-color: rgba(255,107,53,0.2);
+      color: var(--accent2);
+    }
+
+    /* ── VIEWER: overflow hidden is required for NGL to size correctly ── */
+    #viewer-wrap {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* ── The NGL canvas container — must be display:block with explicit height ── */
+    #viewer {
+      display: block;
+      width: 100%;
+      height: 520px;
+      background: #000;
+    }
+
+    .viewer-slider-bar {
+      background: rgba(0,0,0,0.85);
+      padding: 16px 22px 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .slider-mode-label {
+      text-align: center;
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--accent);
+      margin-bottom: 12px;
+      min-height: 18px;
+      letter-spacing: 0.3px;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 6px;
+    }
+
+    .slider-end-label {
+      font-size: 11px;
+      font-family: var(--mono);
+      white-space: nowrap;
+      min-width: 88px;
+    }
+
+    .slider-end-label.left  { color: #2196F3; }
+    .slider-end-label.right { color: #FF6B35; text-align: right; }
+
+    #viewSlider {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .slider-ticks {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 2px;
+      margin-bottom: 14px;
+    }
+
+    .tick { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+
+    .legend-row { display: flex; gap: 18px; flex-wrap: wrap; }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+      transition: opacity 0.2s;
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Controls sit inside the viewer so they must be absolute */
+    .viewer-controls {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 10;
+    }
+
+    .ctrl-btn {
+      background: rgba(0,0,0,0.75);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 10px;
+      font-family: var(--mono);
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    .ctrl-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--muted);
+    }
+
+    .empty-state .icon { font-size: 36px; margin-bottom: 14px; opacity: 0.3; }
+    .empty-state p { font-size: 13px; text-align: center; line-height: 1.7; opacity: 0.6; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      animation: fadeUp 0.4s ease both;
+      transition: border-color 0.2s;
+    }
+
+    .stat-card:hover { border-color: rgba(255,255,255,0.14); }
+
+    .stat-card .stat-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card .stat-value {
+      font-family: var(--font);
+      font-size: 26px;
+      font-weight: 300;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    .stat-card .stat-file {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      margin-top: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #pocket-output {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--success);
+      white-space: pre-wrap;
+      max-height: 260px;
+      overflow-y: auto;
+      line-height: 1.9;
+    }
+
+    #ml-summary-output {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--success);
+      white-space: pre-wrap;
+      max-height: 420px;
+      overflow-y: auto;
+      line-height: 1.8;
+    }
+
+    #graph-img { width: 100%; border-radius: 8px; display: block; animation: fadeIn 0.5s ease both; }
+
+    #results-section { display: none; }
+
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 1.5px solid rgba(0,229,255,0.25);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo-area">
+    <h1>Drug–Protein <span>Binding</span> Visualizer TEST123</h1>
+    <p>Structural analysis tool · Abhi Kotra · UNC Charlotte BME</p>
+  </div>
+  <span class="badge">v1.0 · Biopython + NGL</span>
+</header>
+
+<main>
+
+  <!-- ── SECTION 1: UPLOAD ── -->
+  <div class="card">
+    <div class="section-label">Step 01</div>
+    <h2>Upload PDB Files</h2>
+
+    <div class="upload-grid">
+      <div class="upload-box" id="box-alphafold">
+        <input type="file" id="alphafold" accept=".pdb" onchange="fileSelected(this, 'box-alphafold', 'name-alphafold')">
+        <div class="upload-icon">🔵</div>
+        <div class="label">AlphaFold Structure</div>
+        <div class="desc">Unbound predicted protein<br><small>alphafold.ebi.ac.uk</small></div>
+        <div class="filename" id="name-alphafold"></div>
+      </div>
+
+      <div class="upload-box" id="box-bound">
+        <input type="file" id="bound" accept=".pdb" onchange="fileSelected(this, 'box-bound', 'name-bound')">
+        <div class="upload-icon">🟠</div>
+        <div class="label">Drug-Bound Structure</div>
+        <div class="desc">Experimental PDB with ligand<br><small>rcsb.org</small></div>
+        <div class="filename" id="name-bound"></div>
+      </div>
+    </div>
+
+    <div class="fetch-row">
+      <label>Auto-fetch from RCSB:</label>
+      <input type="text" id="pdbId" placeholder="e.g. 1IEP" maxlength="6">
+      <button class="btn" onclick="fetchFromRCSB()">⬇ Fetch PDB</button>
+    </div>
+
+    <div class="ligand-row">
+      <label>Protein:</label>
+      <input type="text" id="proteinName" value="EGFR" style="width:100px;">
+
+      <label>Mutation:</label>
+      <input type="text" id="mutationName" value="L858R" style="width:100px;">
+
+      <label>Disease:</label>
+      <input type="text" id="diseaseName" value="Lung cancer" style="width:160px;">
+      
+      <label>Ligand code:</label>
+      <input type="text" id="ligandCode" value="IRE" maxlength="5" style="width:72px;">
+      <span class="hint">// e.g. IRE for gefitinib · check RCSB if unsure</span>
+    </div>
+
+    <button class="btn-analyze" onclick="analyze()">Run Analysis</button>
+    <div id="status-bar"></div>
+  </div>
+
+
+  <!-- ── SECTION 2: 3D VIEWER ── -->
+  <div class="card">
+    <div class="section-label">Step 02</div>
+    <h2>Interactive 3D Viewer</h2>
+    <p style="color:var(--muted); font-size:12px; margin-bottom:18px; font-family:var(--mono);">
+      left-click + drag to rotate &nbsp;·&nbsp; scroll to zoom &nbsp;·&nbsp; right-click + drag to pan
+    </p>
+
+    <div id="viewer-wrap">
+
+      <!-- NGL renders into this div -->
+      <div id="viewer">
+        <div class="empty-state" id="empty-state">
+          <div class="icon">↑</div>
+          <p>Upload files above and click<br>Run Analysis to load the 3D structure</p>
+        </div>
+      </div>
+
+      <div class="viewer-controls" id="viewer-controls" style="display:none;">
+        <button class="ctrl-btn" onclick="setRepr('cartoon')">Cartoon</button>
+        <button class="ctrl-btn" onclick="setRepr('surface')">Surface</button>
+        <button class="ctrl-btn" onclick="setRepr('ball+stick')">Ball+Stick</button>
+        <button class="ctrl-btn" onclick="resetView()">Reset View</button>
+      </div>
+
+      <!-- 3-state slider bar -->
+      <div class="viewer-slider-bar">
+        <div class="slider-mode-label" id="slider-label">Run analysis to enable viewer</div>
+        <div class="slider-row">
+          <span class="slider-end-label left">⬤ Protein only</span>
+          <input type="range" min="0" max="100" value="50"
+                 id="viewSlider" step="1"
+                 oninput="onSlider(this.value)">
+          <span class="slider-end-label right">Drug only ⬤</span>
+        </div>
+        <div class="slider-ticks">
+          <span class="tick">protein</span>
+          <span class="tick">both</span>
+          <span class="tick">drug</span>
+        </div>
+        <div class="legend-row">
+          <div class="legend-item" id="leg-protein"><div class="dot" style="background:#2196F3"></div>AlphaFold protein</div>
+          <div class="legend-item" id="leg-bound"><div class="dot" style="background:#00e5cc"></div>Drug-bound protein</div>
+          <div class="legend-item" id="leg-drug"><div class="dot" style="background:#FF6B35"></div>Drug / ligand</div>
+          <div class="legend-item" id="leg-pocket"><div class="dot" style="background:#FFD700"></div>Binding pocket</div>
+          <div class="legend-item" id="leg-hbond"><div class="dot" style="background:#FF00FF"></div>H-bond residues</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-label">History</div>
+    <h2>Previous Analyses</h2>
+    <div id="history-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+  </div>
+<!-- ── SECTION 3: RESULTS ── -->
+  
+  <div id="results-section">
+    <div class="card">
+    <div class="section-label">Output 05</div>
+    <h2>Machine Learning Summary</h2>
+    <pre id="ml-summary-output"></pre>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Output 06</div>
+    <h2>Machine Learning Visualizations</h2>
+    <div id="ml-graph-container"></div>
+  </div>
+
+   <div class="card">
+    <div class="section-label">Project Metadata</div>
+    <h2>Protein Case Study</h2>
+    <div class="stats-grid" id="metadata-grid"></div>
+  </div>
+  
+
+    <div class="card">
+      <div class="section-label">Output 01</div>
+      <h2>Structure Statistics</h2>
+      <div class="stats-grid" id="stats-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Output 01B</div>
+      <h2>Advanced Structural Metrics</h2>
+      <div class="stats-grid" id="advanced-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Output 02</div>
+      <h2>Binding Pocket Residues &nbsp;<small style="color:var(--muted);font-size:12px;font-weight:400;">(within 5Å of ligand)</small></h2>
+      <pre id="pocket-output"></pre>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Output 03</div>
+      <h2>Structure Comparison Graph</h2>
+      <div id="graph-container"></div>
+    </div>
+    <!-- ── BLAST Orthologue Search ── -->
+    <div class="card">
+      <div class="section-label">Output 04G</div>
+      <h2>BLAST Orthologue Search &nbsp;<small style="color:var(--muted);font-size:12px;font-weight:400;">blastp vs PDB database</small></h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Finds similar protein structures from other species (≥80% identity). Run separately — takes 30–90 s.
+      </p>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+        <label style="color:var(--muted);font-size:12px;font-family:var(--mono);">Min identity %:</label>
+        <input type="number" id="blastThreshold" value="80" min="50" max="100" step="5"
+               style="width:64px;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+                      color:var(--text);border-radius:6px;padding:4px 8px;font-family:var(--mono);font-size:13px;">
+        <button class="btn" onclick="runBlast()" id="blast-btn">Run BLAST Search</button>
+        <span id="blast-status" style="font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div id="blast-table-container" style="overflow-x:auto;"></div>
+      <pre id="blast-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;
+           padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;
+           max-height:260px;overflow-y:auto;margin-top:14px;display:none;"></pre>
+    </div>
+
+    <!-- ── H-Bond Interactions ── -->
+    <div class="card">
+      <div class="section-label">Output 04A</div>
+      <h2>Hydrogen Bond Interactions &nbsp;<small style="color:var(--muted);font-size:12px;font-weight:400;">Protein ↔ Ligand</small></h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        D···A distance · D–H···A angle · Classification: Weak &gt;90° / Moderate &gt;120° / Strong &gt;160°
+      </p>
+      <div id="hbond-container" style="overflow-x:auto;"></div>
+      <pre id="hbond-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;max-height:220px;overflow-y:auto;margin-top:14px;"></pre>
+    </div>
+
+    <!-- ── Occupancy & B-Factor ── -->
+    <div class="card">
+      <div class="section-label">Output 04B</div>
+      <h2>Occupancy &amp; Thermal Ellipsoid (B-Factor)</h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Occupancy &lt;1.0 = dual conformations · High B-factor = thermal motion / weak binding
+      </p>
+      <pre id="occ-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;max-height:300px;overflow-y:auto;"></pre>
+      <div id="occ-low-container" style="overflow-x:auto;margin-top:14px;"></div>
+    </div>
+
+    <!-- ── Metal Coordination ── -->
+    <div class="card">
+      <div class="section-label">Output 04C</div>
+      <h2>Metal Ion Coordination</h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Fe, Zn, Mg, Ca, Cu … · Heme Fe: 4 equatorial N + axial ligands
+      </p>
+      <pre id="metal-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;max-height:300px;overflow-y:auto;"></pre>
+      <div id="metal-table-container" style="overflow-x:auto;margin-top:14px;"></div>
+    </div>
+
+    <!-- ── Ramachandran Plots ── -->
+    <div class="card">
+      <div class="section-label">Output 04D</div>
+      <h2>Ramachandran Plot &nbsp;<small style="color:var(--muted);font-size:12px;font-weight:400;">φ/ψ Backbone Dihedral Angles</small></h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Validates secondary structure of ML-predicted (AlphaFold) vs experimental structure
+      </p>
+      <div id="ramachandran-container"></div>
+    </div>
+
+    <!-- ── Sequence Comparison ── -->
+    <div class="card">
+      <div class="section-label">Output 04E</div>
+      <h2>Sequence Comparison &amp; Structural Deviation Table</h2>
+      <p style="color:var(--muted);font-size:12px;font-family:var(--mono);margin-bottom:14px;">
+        Pairwise alignment · Sequence identity · RMSD deviation (Å) · Binding pocket residue conservation
+      </p>
+      <div id="seq-comp-container" style="overflow-x:auto;"></div>
+      <pre id="seq-comp-summary" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--success);white-space:pre-wrap;max-height:260px;overflow-y:auto;margin-top:14px;"></pre>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Output 04F</div>
+      <h2>Download Results</h2>
+
+      <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:20px;">
+
+        <a id="download-csv"
+        class="btn"
+        href="#"
+        download>
+        Download CSV Results
+      </a>
+
+      <a id="download-pocket"
+       class="btn"
+       href="#"
+       download>
+       Download Binding Pocket Report
+    </a>
+
+  </div>
+</div>
+
+  </div>
+
+</main>
+
+
+<script>
+// ── NGL Stage ─────────────────────────────────────────────────
+// Initialise AFTER the DOM is ready so the #viewer div has its
+// full dimensions when NGL measures it.
+var stage = null;
+
+window.addEventListener('DOMContentLoaded', function() {
+  stage = new NGL.Stage("viewer", { backgroundColor: "black", tooltip: true });
+  // Force NGL to measure the correct size right away
+  stage.handleResize();
+});
+
+var currentRepr = "cartoon";
+
+window.addEventListener("resize", function() {
+  if (stage) stage.handleResize();
+});
+
+
+// ── File selected ─────────────────────────────────────────────
+function fileSelected(input, boxId, nameId) {
+  var box  = document.getElementById(boxId);
+  var name = document.getElementById(nameId);
+  if (input.files.length > 0) {
+    box.classList.add('has-file');
+    name.innerText = "✓ " + input.files[0].name;
+  }
+}
+
+
+// ── RCSB fetch ────────────────────────────────────────────────
+var fetchedBoundBlob = null;
+
+async function fetchFromRCSB() {
+  var pdbId = document.getElementById('pdbId').value.trim().toUpperCase();
+  if (!pdbId) { alert("Enter a PDB ID first (e.g. 1IEP)"); return; }
+
+  setStatus("Fetching " + pdbId + " from RCSB...", false);
+  var url = "https://files.rcsb.org/download/" + pdbId + ".pdb";
+
+  try {
+    var resp = await fetch(url);
+    if (!resp.ok) throw new Error("PDB ID not found");
+    var pdbText = await resp.text();
+    fetchedBoundBlob = new Blob([pdbText], { type: 'text/plain' });
+
+    stage.removeAllComponents();
+    hideEmptyState();
+    stage.loadFile(fetchedBoundBlob, { ext: 'pdb', name: 'bound' }).then(function(comp) {
+      comp.addRepresentation("cartoon", { color: "#00e5cc", opacity: 0.85 });
+      comp.addRepresentation("ball+stick", { sele: "not protein and not water", color: "#FF6B35" });
+      stage.autoView();
+      stage.handleResize();
+    });
+
+    document.getElementById('box-bound').classList.add('has-file');
+    document.getElementById('name-bound').innerText = "✓ " + pdbId + ".pdb (from RCSB)";
+    setStatus("Fetched " + pdbId + " ✓  Now click Run Analysis.", false);
+  } catch (e) {
+    setStatus("Could not fetch " + pdbId + ". Check the ID and try again.", true);
+  }
+}
+
+
+// ── Analyze ───────────────────────────────────────────────────
+async function analyze() {
+  var alphafoldFile = document.getElementById('alphafold').files[0];
+  var ligandCode    = document.getElementById('ligandCode').value.trim().toUpperCase() || 'IRE';
+
+  var boundFile = document.getElementById('bound').files[0] || null;
+  if (!boundFile && fetchedBoundBlob) {
+    var pdbId = document.getElementById('pdbId').value.trim().toUpperCase() || 'bound';
+    boundFile = new File([fetchedBoundBlob], pdbId + ".pdb", { type: 'text/plain' });
+  }
+
+  if (!alphafoldFile) { alert("Please upload the AlphaFold PDB file."); return; }
+  if (!boundFile)     { alert("Please upload or fetch the drug-bound PDB file."); return; }
+
+  setStatus('<span class="spinner"></span> Running analysis — this may take 10–30 seconds...', false);
+
+  var formData = new FormData();
+  formData.append('alphafold',   alphafoldFile);
+  formData.append('bound',       boundFile);
+  formData.append('ligand_code', ligandCode);
+  formData.append('protein_name', document.getElementById('proteinName').value.trim());
+  formData.append('mutation_name', document.getElementById('mutationName').value.trim());
+  formData.append('disease_name', document.getElementById('diseaseName').value.trim());
+
+  try {
+    var resp = await fetch('/analyze', { method: 'POST', body: formData });
+
+    // Guard: if server returned non-JSON (e.g. HTML error page), show raw text
+    var contentType = resp.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      var raw = await resp.text();
+      setStatus('Server error (non-JSON response). Check Render logs. Preview: ' + raw.substring(0, 200), true);
+      return;
+    }
+
+    var data = await resp.json();
+    if (data.error) {
+      setStatus('Error: ' + data.error + (data.details ? ' — ' + data.details.substring(0, 300) : ''), true);
+      return;
+    }
+
+    // ── Load 3D viewer ──
+    stage.removeAllComponents();
+    hideEmptyState();
+    document.getElementById('viewer-controls').style.display = 'flex';
+    document.getElementById('viewSlider').value = 50;
+    document.getElementById('slider-label').innerText = 'Showing: protein + drug (both)';
+
+    // AlphaFold structure — blue
+    var afBlob = new Blob([await alphafoldFile.arrayBuffer()], { type: 'text/plain' });
+    stage.loadFile(afBlob, { ext: 'pdb', name: 'alphafold' }).then(function(comp) {
+      comp.addRepresentation("cartoon", { color: "#2196F3", opacity: 0.7 });
+      stage.autoView();
+      // Always call handleResize after loading so NGL fills the canvas correctly
+      stage.handleResize();
+    });
+
+    // Drug-bound structure — teal protein + orange drug + yellow pocket + magenta H-bonds
+    var boundBlob = new Blob([await boundFile.arrayBuffer()], { type: 'text/plain' });
+    stage.loadFile(boundBlob, { ext: 'pdb', name: 'bound' }).then(function(comp) {
+      comp.addRepresentation("cartoon", { color: "#00e5cc", opacity: 0.75 });
+      comp.addRepresentation("ball+stick", {
+        sele: "not protein and not water",
+        color: "#FF6B35",
+        radius: 0.3
+      });
+
+      // Binding pocket residues — yellow ball+stick
+      var pocketLines = data.pocket.split('\n').filter(function(l) {
+        return l.match(/Chain \w: \w+ \d+/);
+      });
+      if (pocketLines.length > 0) {
+        var nums = pocketLines.map(function(l) { return l.match(/(\d+)$/)[1]; });
+        comp.addRepresentation("ball+stick", {
+          sele: nums.join(' or '),
+          color: "#FFD700",
+          radius: 0.25
+        });
+      }
+
+      // H-bond donor/acceptor residues — magenta ball+stick
+      if (data.hbond_data && data.hbond_data.length > 0) {
+        var hbondNums = new Set();
+        data.hbond_data.forEach(function(hb) {
+          var dm = (hb.donor_residue    || '').match(/\b(\d+)\b/);
+          var am = (hb.acceptor_residue || '').match(/\b(\d+)\b/);
+          if (dm) hbondNums.add(dm[1]);
+          if (am) hbondNums.add(am[1]);
+        });
+        if (hbondNums.size > 0) {
+          comp.addRepresentation("ball+stick", {
+            sele: Array.from(hbondNums).join(' or '),
+            color: "#FF00FF",
+            radius: 0.32,
+            aspectRatio: 2.5
+          });
+        }
+      }
+
+      stage.autoView();
+      stage.handleResize();
+    });
+
+    // Store session info for BLAST button
+    window._blastSession = {
+      session_id: data.results_folder,
+      pdb_file:   data.bound_id,
+    };
+
+    console.log(data);
+
+    // ── Metadata ──
+    var metadataGrid = document.getElementById('metadata-grid');
+    metadataGrid.innerHTML = '';
+
+    if (data.metadata) {
+     var metadataItems = {
+      'Protein': data.metadata.protein_name,
+      'Mutation': data.metadata.mutation_name,
+      'Ligand': data.metadata.ligand_code,
+      'Disease': data.metadata.disease_name
+    };
+
+    Object.keys(metadataItems).forEach(function(key, i) {
+      var card = document.createElement('div');
+      card.className = 'stat-card';
+      card.style.animationDelay = (i * 0.07) + 's';
+
+      card.innerHTML =
+        '<div class="stat-label">' + key + '</div>' +
+        '<div class="stat-value" style="font-size:20px;">' + metadataItems[key] + '</div>' +
+        '<div class="stat-file">case metadata</div>';
+
+      metadataGrid.appendChild(card);
+    });
+  }
+    // ── Stats ──
+    var grid = document.getElementById('stats-grid');
+    grid.innerHTML = '';
+    if (data.stats && data.stats.length > 0) {
+      data.stats.forEach(function(row) {
+        ['atoms','residues','chains'].forEach(function(key, i) {
+          var card = document.createElement('div');
+          card.className = 'stat-card';
+          card.style.animationDelay = (i * 0.07) + 's';
+          card.innerHTML =
+            '<div class="stat-label">' + key + '</div>' +
+            '<div class="stat-value">' + row[key] + '</div>' +
+            '<div class="stat-file">' + row.file + '</div>';
+          grid.appendChild(card);
+        });
+      });
+    }
+          // ── Advanced Metrics ──
+    var advancedGrid = document.getElementById('advanced-grid');
+    advancedGrid.innerHTML = '';
+
+    if (data.advanced_metrics && data.advanced_metrics.length > 0) {
+      var metrics = data.advanced_metrics[0];
+
+      var metricKeys = [
+      'global_rmsd',
+      'local_rmsd_5A',
+      'local_rmsd_8A',
+      'local_rmsd_10A',
+      'matched_residues_5A',
+      'matched_residues_8A',
+      'matched_residues_10A',
+      'radius_of_gyration_alphafold',
+      'radius_of_gyration_bound'
+    ];
+
+      metricKeys.forEach(function(key, i) {
+        var card = document.createElement('div');
+        card.className = 'stat-card';
+        card.style.animationDelay = (i * 0.07) + 's';
+
+        var cleanLabel = key
+          .replaceAll('_', ' ')
+          .replace('5A', '5Å')
+          .replace('8A', '8Å')
+          .replace('10A', '10Å');
+
+        card.innerHTML =
+          '<div class="stat-label">' + cleanLabel + '</div>' +
+          '<div class="stat-value">' + metrics[key] + '</div>' +
+          '<div class="stat-file">advanced metric</div>';
+
+        advancedGrid.appendChild(card);
+      });
+    }
+    document.getElementById('pocket-output').innerText = data.pocket || "No residues found.";
+
+    if (data.graphs && data.graphs.length > 0) {
+
+  var graphContainer = document.getElementById('graph-container');
+
+  graphContainer.innerHTML = '';
+
+  data.graphs.forEach(function(graph) {
+
+    var section = document.createElement('div');
+    section.style.marginBottom = '40px';
+
+    var title = document.createElement('h3');
+    title.style.marginBottom = '12px';
+    title.style.color = 'var(--accent)';
+    title.style.fontSize = '16px';
+
+    title.innerText = graph.name
+      .replace('.png', '')
+      .replaceAll('_', ' ')
+      .toUpperCase();
+
+    var img = document.createElement('img');
+
+    img.src = 'data:image/png;base64,' + graph.data;
+
+    img.style.width = '100%';
+    img.style.borderRadius = '10px';
+    img.style.border = '1px solid rgba(255,255,255,0.08)';
+
+    section.appendChild(title);
+    section.appendChild(img);
+
+    graphContainer.appendChild(section);
+  });
+}
+
+    var rs = document.getElementById('results-section');
+    rs.style.display = 'block';
+    rs.scrollIntoView({ behavior: 'smooth' });
+    // Download links
+    document.getElementById('download-csv').href =
+      '/download/' + data.results_folder + '/advanced_metrics.csv';
+
+    document.getElementById('download-pocket').href =
+      '/download/' + data.results_folder + '/binding_pocket_residues.txt';
+ // ── ML Summary Report ──
+    document.getElementById('ml-summary-output').innerText =
+      data.ml_summary || "No ML summary report found. Run ML scripts first.";
+
+    // ── ML Graphs ──
+    var mlGraphContainer = document.getElementById('ml-graph-container');
+    mlGraphContainer.innerHTML = '';
+
+    if (data.ml_graphs && data.ml_graphs.length > 0) {
+      data.ml_graphs.forEach(function(graph) {
+
+        var section = document.createElement('div');
+        section.style.marginBottom = '40px';
+
+        var title = document.createElement('h3');
+        title.style.marginBottom = '12px';
+        title.style.color = 'var(--accent)';
+        title.style.fontSize = '16px';
+
+        title.innerText = graph.name
+          .replace('.png', '')
+          .replaceAll('_', ' ')
+          .toUpperCase();
+
+        var img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + graph.data;
+        img.style.width = '100%';
+        img.style.borderRadius = '10px';
+        img.style.border = '1px solid rgba(255,255,255,0.08)';
+
+        section.appendChild(title);
+        section.appendChild(img);
+        mlGraphContainer.appendChild(section);
+      });
+    } else {
+      mlGraphContainer.innerHTML =
+        '<p style="color:var(--muted); font-family:var(--mono);">No ML graphs found. Run C.3–C.9 scripts first.</p>';
+    }
+    
+    // ── New analysis sections ──
+    renderHbonds(data.hbond_data, data.hbond_summary);
+    renderOccupancy(data.occupancy_low, data.occupancy_high, data.occupancy_summary);
+    renderMetal(data.metal_data, data.metal_summary);
+    renderRamachandran(data.graphs);
+    renderSeqComparison(data.seq_comparison, data.seq_comparison_summary,
+                        data.residue_correspondence, data.advanced_metrics);
+
+    loadHistory();
+    setStatus('Analysis complete ✓', false);
+
+  } catch (e) {
+    setStatus('Error: ' + e.message, true);
+  }
+}
+// ── 3-state slider ────────────────────────────────────────────
+function onSlider(val) {
+  val = parseInt(val);
+  var proteinOpacity, boundOpacity;
+
+  if (val <= 50) {
+    proteinOpacity = 1.0;
+    boundOpacity   = val / 50;
+  } else {
+    proteinOpacity = 1.0 - ((val - 50) / 50);
+    boundOpacity   = 1.0;
+  }
+
+  var label = document.getElementById('slider-label');
+  if      (val === 0)   label.innerText = 'Showing: protein only';
+  else if (val === 50)  label.innerText = 'Showing: protein + drug (both)';
+  else if (val === 100) label.innerText = 'Showing: drug only';
+  else if (val < 50)    label.innerText = 'Fading in drug...';
+  else                  label.innerText = 'Fading out protein...';
+
+  document.getElementById('leg-protein').style.opacity = Math.max(0.2, proteinOpacity);
+  document.getElementById('leg-bound').style.opacity   = Math.max(0.2, boundOpacity);
+  document.getElementById('leg-drug').style.opacity    = Math.max(0.2, boundOpacity);
+  document.getElementById('leg-pocket').style.opacity  = Math.max(0.2, boundOpacity);
+
+  if (!stage) return;
+  stage.eachComponent(function(comp) {
+    if (comp.name === 'alphafold') {
+      comp.eachRepresentation(function(r) {
+        if (proteinOpacity <= 0) { r.setVisibility(false); }
+        else { r.setVisibility(true); r.setParameters({ opacity: proteinOpacity }); }
+      });
+    }
+    if (comp.name === 'bound') {
+      comp.eachRepresentation(function(r) {
+        if (boundOpacity <= 0) { r.setVisibility(false); }
+        else { r.setVisibility(true); r.setParameters({ opacity: boundOpacity }); }
+      });
+    }
+  });
+}
+
+
+// ── Repr toggles ──────────────────────────────────────────────
+function setRepr(repr) {
+  currentRepr = repr;
+  if (!stage) return;
+  stage.eachComponent(function(comp) {
+    comp.removeAllRepresentations();
+    comp.addRepresentation(repr, { color: "chainname" });
+  });
+}
+
+function resetView() { if (stage) stage.autoView(); }
+
+
+// ── Hide empty state placeholder ─────────────────────────────
+function hideEmptyState() {
+  var es = document.getElementById('empty-state');
+  if (es) es.style.display = 'none';
+}
+
+
+// ── Status bar ────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    var resp = await fetch('/history');
+    var history = await resp.json();
+
+    var container = document.getElementById('history-list');
+    container.innerHTML = '';
+
+    if (!history || history.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted); font-family:var(--mono);">No previous analyses yet.</p>';
+      return;
+    }
+
+    history.forEach(function(item) {
+      var div = document.createElement('div');
+
+      div.style.padding = '14px';
+      div.style.border = '1px solid rgba(255,255,255,0.08)';
+      div.style.borderRadius = '10px';
+      div.style.background = 'rgba(255,255,255,0.02)';
+
+      div.innerHTML =
+        '<strong style="color:var(--accent);">' + item.protein_name + '</strong>' +
+        ' <span style="color:var(--muted);">(' + item.mutation_name + ')</span><br>' +
+        'Disease: ' + item.disease_name + '<br>' +
+        'Ligand: ' + item.ligand_code + '<br>' +
+        '<small style="color:var(--muted); font-family:var(--mono);">' +
+        item.timestamp + ' · Session: ' + item.session_id +
+        '</small>';
+
+      container.appendChild(div);
+    });
+
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+loadHistory();
+
+function setStatus(msg, isError) {
+  var bar = document.getElementById('status-bar');
+  bar.style.display = 'block';
+  bar.innerHTML = msg;
+  bar.className = isError ? 'error' : '';
+}
+
+// ── Shared table builder ─────────────────────────────────────
+function buildTable(rows, containerId, emptyMsg) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  if (!rows || rows.length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);font-family:var(--mono);font-size:12px;">' + emptyMsg + '</p>';
+    return;
+  }
+  var keys = Object.keys(rows[0]);
+  var html = '<table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;">';
+  html += '<thead><tr>';
+  keys.forEach(function(k) {
+    html += '<th style="padding:6px 10px;text-align:left;color:var(--accent);border-bottom:1px solid var(--border);white-space:nowrap;">'
+            + k.replaceAll('_', ' ') + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+  rows.forEach(function(row, i) {
+    var bg = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent';
+    html += '<tr style="background:' + bg + ';">';
+    keys.forEach(function(k) {
+      var val = row[k] === null || row[k] === undefined ? '' : row[k];
+      // Highlight strength column
+      var style = 'padding:5px 10px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.04);white-space:nowrap;';
+      if (k === 'strength') {
+        var c = val === 'Strong' ? '#22d3a4' : val === 'Moderate' ? '#00e5ff' : '#FF6B35';
+        style += 'color:' + c + ';font-weight:500;';
+      }
+      if (k === 'da_distance_A' || k === 'bond_distance_A') {
+        style += 'color:#FFD700;';
+      }
+      if (k === 'dha_angle_deg') {
+        style += 'color:#00e5ff;';
+      }
+      html += '<td style="' + style + '">' + val + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ── BLAST Search ─────────────────────────────────────────────
+async function runBlast() {
+  if (!window._blastSession) {
+    alert('Run main analysis first to load a structure.');
+    return;
+  }
+  var threshold = document.getElementById('blastThreshold').value || '80';
+  var btn = document.getElementById('blast-btn');
+  var statusEl = document.getElementById('blast-status');
+  btn.disabled = true;
+  statusEl.innerHTML = '<span class="spinner"></span> Querying NCBI BLAST — please wait (30–90 s)…';
+
+  try {
+    var fd = new FormData();
+    fd.append('session_id', window._blastSession.session_id);
+    fd.append('pdb_file',   window._blastSession.pdb_file);
+    fd.append('threshold',  threshold);
+
+    var resp = await fetch('/blast', { method: 'POST', body: fd });
+    var data = await resp.json();
+
+    if (data.error) {
+      statusEl.innerText = 'Error: ' + data.error;
+      btn.disabled = false;
+      return;
+    }
+
+    // Render table
+    var display = (data.blast_data || []).map(function(r) {
+      return {
+        'PDB ID':       r.pdb_id,
+        'Chain':        r.chain,
+        'Organism':     r.organism,
+        'Identity (%)': r.identity_pct,
+        'Similarity (%)': r.similarity_pct,
+        'E-value':      r.e_value,
+        'Align len':    r.alignment_length,
+        'Description':  (r.description || '').substring(0, 60),
+      };
+    });
+    buildTable(display, 'blast-table-container',
+      'No BLAST hits found above the threshold.');
+
+    var summaryEl = document.getElementById('blast-summary');
+    summaryEl.innerText = data.blast_summary || '';
+    summaryEl.style.display = 'block';
+
+    var n = (data.blast_data || []).length;
+    statusEl.innerText = n + ' hit' + (n !== 1 ? 's' : '') + ' found ✓';
+  } catch (e) {
+    statusEl.innerText = 'Request failed: ' + e.message;
+  }
+  btn.disabled = false;
+}
+
+// ── Render H-bonds ────────────────────────────────────────────
+function renderHbonds(data, summary) {
+  document.getElementById('hbond-summary').innerText = summary || 'No H-bond data available.';
+  // Show only the key columns in the table
+  var display = (data || []).map(function(r) {
+    return {
+      'Direction':     r.direction,
+      'Donor':         r.donor_residue,
+      'Donor atom':    r.donor_atom,
+      'Acceptor':      r.acceptor_residue,
+      'Acceptor atom': r.acceptor_atom,
+      'D…A (Å)': r.da_distance_A,
+      'D–H (Å)': r.dh_distance_A,
+      'H…A (Å)': r.ha_distance_A,
+      'Angle (°)': r.dha_angle_deg,
+      'Strength': r.strength,
+    };
+  });
+  buildTable(display, 'hbond-container', 'No H-bond interactions found for this ligand.');
+}
+
+// ── Render Occupancy / B-factor ───────────────────────────────
+function renderOccupancy(lowOcc, highB, summary) {
+  document.getElementById('occ-summary').innerText = summary || 'No occupancy data available.';
+  var display = (lowOcc || []).map(function(r) {
+    return {
+      'Chain': r.chain,
+      'Residue': r.residue,
+      'Res #': r.resnum,
+      'Occupancy': r.occupancy,
+      'Max B-factor (Å²)': r.max_bfactor,
+      'Atoms': r.atoms,
+      'Type': r.type,
+    };
+  });
+  buildTable(display, 'occ-low-container',
+    lowOcc && lowOcc.length === 0
+      ? 'All atoms have occupancy = 1.0 (no dual conformations detected).'
+      : 'No low-occupancy residues.');
+}
+
+// ── Render Metal Coordination ─────────────────────────────────
+function renderMetal(metalData, summary) {
+  document.getElementById('metal-summary').innerText = summary || 'No metal coordination data.';
+  var display = (metalData || []).map(function(r) {
+    return {
+      'Metal': r.metal_name,
+      'Metal atom': r.metal_atom,
+      'Metal residue': r.metal_residue + ' ' + r.metal_resnum,
+      'Chain': r.metal_chain,
+      'Coord #': r.coordination_number,
+      'Geometry': r.geometry,
+      'Coord atom': r.coord_atom + ' (' + r.coord_element + ')',
+      'Coord residue': r.coord_residue + ' ' + r.coord_resnum,
+      'Bond dist (Å)': r.bond_distance_A,
+      'Ligand type': r.ligand_type,
+    };
+  });
+  buildTable(display, 'metal-table-container',
+    'No metal ions detected in this structure.');
+}
+
+// ── Render Ramachandran images ────────────────────────────────
+function renderRamachandran(graphs) {
+  var el = document.getElementById('ramachandran-container');
+  if (!el) return;
+  var ramaGraphs = (graphs || []).filter(function(g) {
+    return g.name && g.name.startsWith('ramachandran_');
+  });
+  if (ramaGraphs.length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);font-family:var(--mono);font-size:12px;">Ramachandran plots will appear here after analysis.</p>';
+    return;
+  }
+  el.innerHTML = '';
+  ramaGraphs.forEach(function(g) {
+    var wrap = document.createElement('div');
+    wrap.style.marginBottom = '30px';
+    var ttl = document.createElement('h3');
+    ttl.style.cssText = 'color:var(--accent);font-size:14px;margin-bottom:10px;';
+    ttl.innerText = g.name.replace('.png','').replaceAll('_',' ').toUpperCase();
+    var img = document.createElement('img');
+    img.src = 'data:image/png;base64,' + g.data;
+    img.style.cssText = 'width:100%;border-radius:10px;border:1px solid var(--border);';
+    wrap.appendChild(ttl);
+    wrap.appendChild(img);
+    el.appendChild(wrap);
+  });
+}
+
+// ── Render Sequence Comparison ────────────────────────────────
+function renderSeqComparison(seqData, seqSummary, resCorr, advMetrics) {
+  document.getElementById('seq-comp-summary').innerText = seqSummary || 'No sequence comparison data.';
+
+  // Build master comparison table
+  var rmsd = '';
+  if (advMetrics && advMetrics.length > 0) {
+    rmsd = advMetrics[0].global_rmsd || '';
+  }
+  var display = (seqData || []).map(function(r) {
+    return {
+      'Chain': r.chain,
+      'AF length': r.af_length,
+      'Bound length': r.bound_length,
+      'Identity (%)': r.sequence_identity_pct,
+      'Similarity (%)': r.sequence_similarity_pct,
+      '≥90% similar': r.high_similarity_ge90 === 'True' ? 'YES' : 'NO',
+      'Global RMSD (Å)': rmsd,
+      'AlphaFold preview': r.aligned_af_preview,
+      'Bound preview': r.aligned_bound_preview,
+    };
+  });
+  buildTable(display, 'seq-comp-container', 'No sequence comparison data available.');
+}
+</script>
+
+</body>
+</html>

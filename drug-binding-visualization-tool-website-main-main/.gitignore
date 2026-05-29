@@ -1,0 +1,22 @@
+# Claude Code local config (do not commit)
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.env
+
+# Data / uploads (user files, not source)
+data/uploads/
+data/results/
+data/images/
+data/history.csv
+
+# OS
+.DS_Store
+Thumbs.db
